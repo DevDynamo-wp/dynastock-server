@@ -1,0 +1,48 @@
+Inscription :
+
+POST http://127.0.0.1:8000/api/auth/register/
+{
+    "email":"jean@test.com",
+    "password":"MotDePasse123!",
+    "full_name":"Jean Dupont",
+    "phone":"+22990000000"
+}
+
+
+Connexion :
+
+POST http://127.0.0.1:8000/api/auth/login/
+  -H "Content-Type: application/json" \
+{
+    "email":"jean@test.com",
+    "password":"MotDePasse123!"
+}
+
+Profil (route protégée) :
+
+bash
+curl http://127.0.0.1:8000/api/auth/me/ \
+  -H "Authorization: Bearer COLLE_ICI_LE_ACCESS_TOKEN"
+
+
+
+
+Créer une boutique (remplace le token par celui obtenu en Phase 3) :
+
+bash
+curl -X POST http://127.0.0.1:8000/api/stores/ \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TON_ACCESS_TOKEN" \
+{
+    "name":"Boutique Porto-Novo",
+    "city":"Porto-Novo",
+    "address":"Quartier Houinmè"
+}
+
+Réponse attendue : 201, avec "role": "owner" dans la réponse.
+
+Lister mes boutiques :
+
+bash
+curl http://127.0.0.1:8000/api/stores/ \
+  -H "Authorization: Bearer TON_ACCESS_TOKEN"

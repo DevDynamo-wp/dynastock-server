@@ -1,3 +1,52 @@
+# ============================================================
+# FILE: apps/sync/models.py
+# ============================================================
+#
+# JournalOperation
+# -----------------
+# Version serveur du journal d'opérations local (cf. vision_produit.md).
+# Point clé : l'id N'EST PAS généré ici, il vient du téléphone.
+# C'est ce qui permet la dé-duplication : si Flutter renvoie deux
+# fois la même opération (ex: connexion coupée juste après la
+# confirmation serveur), on reconnaît l'id déjà traité et on ne
+# rejoue rien.
+# ------------------------------------------------------
 from django.db import models
+from apps.accounts.models import User
+from apps.stores.models import Store
 
-# Create your models here.
+
+class JournalOperation(models.Model):
+
+    class OperationType(models.TextChoices):
+        UPDATE_STORE = 'UPDATE_STORE', 'Modifier une boutique'
+        # TODO : ajouter ici CREATE_PRODUCT, SALE, RESTOCK, etc.
+        # au fur et à mesure que ces entités seront modélisées
+        # côté serveur (phases futures).
+
+    id = models.UUIDField(primary_key=True, editable=False)
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='journal_operations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='journal_operations')
+
+    # Pas encore utilisé côté Flutter aujourd'hui, mais prévu dès
+    # maintenant : essentiel plus tard pour résoudre les conflits
+    # entre plusieurs appareils (cf. relations.md).
+    device_id = models.CharField(max_length=100, blank=True, null=True)
+
+    operation_type = models.CharField(max_length=30, choices=OperationType.choices)
+    entity_type = models.CharField(max_length=30)
+    entity_id = models.CharField(max_length=64)
+    payload = models.JSONField()
+
+    applied = models.BooleanField(default=False)
+    error_message = models.CharField(max_length=255, blank=True, null=True)
+
+    client_created_at = models.DateTimeField()
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['client_created_at']
+
+    def __str__(self):
+        return f"{self.operation_type} on {self.entity_type}:{self.entity_id}"
