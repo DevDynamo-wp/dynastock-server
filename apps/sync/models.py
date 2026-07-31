@@ -20,6 +20,8 @@ class JournalOperation(models.Model):
 
     class OperationType(models.TextChoices):
         UPDATE_STORE = 'UPDATE_STORE', 'Modifier une boutique'
+        CREATE_CATEGORY = 'CREATE_CATEGORY', 'Créer une catégorie'
+        UPDATE_CATEGORY = 'UPDATE_CATEGORY', 'Modifier une catégorie'
         # TODO : ajouter ici CREATE_PRODUCT, SALE, RESTOCK, etc.
         # au fur et à mesure que ces entités seront modélisées
         # côté serveur (phases futures).

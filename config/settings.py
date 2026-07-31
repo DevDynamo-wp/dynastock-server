@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.stores',
     'apps.sync',
+    'apps.catalog',
 ]
 
 # ============================================================

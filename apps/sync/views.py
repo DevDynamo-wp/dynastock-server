@@ -24,6 +24,8 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
+from apps.catalog.models import Category
+from apps.catalog.serializers import CategorySerializer
 
 
 class SyncPushView(APIView):
@@ -88,6 +90,20 @@ class SyncPushView(APIView):
             if 'address' in op.payload:
                 store.address = op.payload['address']
             store.save()
+
+        elif op.operation_type == JournalOperation.OperationType.CREATE_CATEGORY:
+            Category.objects.create(
+                id=op.entity_id,
+                store_id=op.store_id,
+                name=op.payload['name'],
+            )
+
+        elif op.operation_type == JournalOperation.OperationType.UPDATE_CATEGORY:
+            category = Category.objects.get(id=op.entity_id)
+            if 'name' in op.payload:
+                category.name = op.payload['name']
+            category.save()
+
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
 
@@ -99,6 +115,7 @@ class SyncBootstrapView(APIView):
         user = request.user
         store_ids = UserStore.objects.filter(user=user).values_list('store_id', flat=True)
         stores = Store.objects.filter(id__in=store_ids)
+        categories = Category.objects.filter(store_id__in=store_ids)
 
         roles_by_store = dict(
             UserStore.objects.filter(user=user).values_list('store_id', 'role')
@@ -108,6 +125,7 @@ class SyncBootstrapView(APIView):
 
         return Response({
             'stores': StoreSerializer(stores, many=True).data,
+            'categories': CategorySerializer(categories, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur
             # 'customers': [...],  # idem
         })
