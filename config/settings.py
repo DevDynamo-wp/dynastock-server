@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.stores',
     'apps.sync',
     'apps.catalog',
+    'apps.subscriptions',
 ]
 
 # ============================================================
@@ -144,6 +145,11 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+
+# Nombre de jours de crédit gratuit offerts à l'inscription.
+# Modifiable ici sans toucher à la logique métier.
+TRIAL_CREDIT_DAYS = 30
 
 
 # Static files (CSS, JavaScript, Images)
