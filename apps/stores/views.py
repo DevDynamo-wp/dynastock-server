@@ -19,10 +19,11 @@ from rest_framework import status
 
 from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer, CreateStoreSerializer
+from apps.subscriptions.permissions import HasWriteAccess
 
 
 class StoreListCreateView(generics.ListCreateAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasWriteAccess]
 
     def get_serializer_class(self):
         return CreateStoreSerializer if self.request.method == 'POST' else StoreSerializer

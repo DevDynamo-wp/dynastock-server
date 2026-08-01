@@ -20,7 +20,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
-from apps.subscriptions.models import Subscription
+from apps.subscriptions.models import Subscription, SubscriptionPlan
 
 
 @dataclass
@@ -43,6 +43,21 @@ def start_trial(user) -> Subscription:
         user=user,
         plan=None,  # pas de plan payant pour l'essai gratuit
         status=Subscription.Status.TRIAL,
+        end_date=end_date,
+    )
+    
+    
+def subscribe_to_plan(user, plan: SubscriptionPlan) -> Subscription:
+    """
+    Souscription simulée : aucun paiement réel n'est traité pour
+    l'instant (en attente d'une intégration de paiement future).
+    Crée directement un Subscription ACTIVE.
+    """
+    end_date = timezone.now() + timedelta(days=plan.duration_days)
+    return Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
         end_date=end_date,
     )
 

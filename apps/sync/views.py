@@ -28,8 +28,10 @@ from apps.catalog.models import Category
 from apps.catalog.serializers import CategorySerializer
 
 
+from apps.subscriptions.permissions import HasWriteAccess
+
 class SyncPushView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasWriteAccess]
 
     def post(self, request):
         serializer = PushSerializer(data=request.data)

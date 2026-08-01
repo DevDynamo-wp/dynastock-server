@@ -11,4 +11,6 @@ urlpatterns = [
     path('api/stores/', include('apps.stores.urls')),
     #syncronisation
     path('api/sync/', include('apps.sync.urls')),
+    #abonnements
+    path('api/subscriptions/', include('apps.subscriptions.urls')),
 ]
