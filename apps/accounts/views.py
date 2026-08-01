@@ -29,6 +29,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.serializers import RegisterSerializer, UserSerializer
 from apps.accounts.models import User
+from apps.subscriptions.services import start_trial
 
 
 class RegisterView(generics.CreateAPIView):
@@ -40,6 +41,7 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        start_trial(user) # démarre le crédit gratuit configurable (TRIAL_CREDIT_DAYS)
 
         refresh = RefreshToken.for_user(user)
         return Response({
