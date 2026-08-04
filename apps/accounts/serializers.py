@@ -50,3 +50,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.is_verified = True
         user.save(update_fields=['is_verified'])
         return user
+    
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    """Sérialiseur utilisé uniquement pour PATCH /api/auth/me/.
+
+    Volontairement restreint à full_name et phone : l'email est
+    l'identifiant de connexion (USERNAME_FIELD) et ne doit pas être
+    modifiable ici, pour ne pas risquer de casser les tokens/sessions
+    existants ou créer des doublons non contrôlés.
+    """
+
+    class Meta:
+        model = User
+        fields = ['full_name', 'phone']

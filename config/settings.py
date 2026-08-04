@@ -151,6 +151,19 @@ USE_TZ = True
 # Modifiable ici sans toucher à la logique métier.
 TRIAL_CREDIT_DAYS = 30
 
+# ============================================================
+# EMAIL (SMTP Gmail) — utilisé pour les invitations de gérants
+# ============================================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
+
+# Durée de validité d'un code d'invitation de gérant.
+INVITATION_VALIDITY_DAYS = 7
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/

@@ -15,7 +15,8 @@
 #
 # MeView
 # ------
-# GET /api/auth/me/  → profil de l'utilisateur connecté.
+# GET   /api/auth/me/  → profil de l'utilisateur connecté.
+# PATCH /api/auth/me/  → modifie full_name / phone uniquement.
 # Utile côté Flutter après une réinstallation : dès qu'on a un
 # token valide, on peut revérifier qui est l'utilisateur avant
 # de lancer le rapatriement des données (Phase 5).
@@ -27,7 +28,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.serializers import RegisterSerializer, UserSerializer
+from apps.accounts.serializers import RegisterSerializer, UserSerializer, UpdateProfileSerializer
 from apps.accounts.models import User
 from apps.subscriptions.services import start_trial
 
@@ -76,4 +77,15 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        # partial=True : on accepte de ne recevoir que full_name,
+        # ou que phone, ou les deux — jamais l'email (non inclus
+        # dans UpdateProfileSerializer donc ignoré même s'il est envoyé).
+        serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        # On renvoie le profil complet (UserSerializer) pour que Flutter
+        # puisse remplacer directement son cache local sans requête GET en plus.
         return Response(UserSerializer(request.user).data)
