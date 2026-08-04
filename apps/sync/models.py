@@ -22,6 +22,8 @@ class JournalOperation(models.Model):
         UPDATE_STORE = 'UPDATE_STORE', 'Modifier une boutique'
         CREATE_CATEGORY = 'CREATE_CATEGORY', 'Créer une catégorie'
         UPDATE_CATEGORY = 'UPDATE_CATEGORY', 'Modifier une catégorie'
+        CREATE_PRODUCT = 'CREATE_PRODUCT', 'Créer un produit'
+        UPDATE_PRODUCT = 'UPDATE_PRODUCT', 'Modifier un produit'
         # TODO : ajouter ici CREATE_PRODUCT, SALE, RESTOCK, etc.
         # au fur et à mesure que ces entités seront modélisées
         # côté serveur (phases futures).
