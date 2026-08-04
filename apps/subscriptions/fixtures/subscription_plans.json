@@ -1,0 +1,50 @@
+[
+    {
+        "model": "subscriptions.subscriptionplan",
+        "pk": 1,
+        "fields": {
+            "name": "Mensuel",
+            "billing_period": "monthly",
+            "price": "9.99",
+            "duration_days": 30,
+            "is_active": true,
+            "created_at": "2026-08-04T00:00:00Z"
+        }
+    },
+    {
+        "model": "subscriptions.subscriptionplan",
+        "pk": 2,
+        "fields": {
+            "name": "Annuel",
+            "billing_period": "yearly",
+            "price": "99.99",
+            "duration_days": 365,
+            "is_active": true,
+            "created_at": "2026-08-04T00:00:00Z"
+        }
+    },
+    {
+        "model": "subscriptions.subscriptionplan",
+        "pk": 3,
+        "fields": {
+            "name": "Mensuel Premium",
+            "billing_period": "monthly",
+            "price": "19.99",
+            "duration_days": 30,
+            "is_active": true,
+            "created_at": "2026-08-04T00:00:00Z"
+        }
+    },
+    {
+        "model": "subscriptions.subscriptionplan",
+        "pk": 4,
+        "fields": {
+            "name": "Annuel Premium",
+            "billing_period": "yearly",
+            "price": "199.99",
+            "duration_days": 365,
+            "is_active": true,
+            "created_at": "2026-08-04T00:00:00Z"
+        }
+    }
+]
