@@ -15,6 +15,8 @@
 # stable ; on ajoutera de nouvelles clés (products, customers...)
 # au fil des prochaines phases, sans jamais casser ce qui existe.
 # ------------------------------------------------------
+import uuid
+
 from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.response import Response
