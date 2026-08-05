@@ -62,3 +62,26 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    
+class Supplier(models.Model):
+    """
+    Fournisseur (Module 9). Même logique que Category/Product :
+    l'id est généré côté Flutter (création possible hors ligne),
+    le serveur se contente de l'enregistrer via le journal.
+
+    Volontairement simple pour la V1 : pas de suivi d'achats ni
+    de solde — juste un répertoire de contacts, prêt à être relié
+    au futur module "Achats" (V2 de la roadmap).
+    """
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='suppliers')
+
+    name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=30, blank=True, default='')
+    address = models.CharField(max_length=255, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

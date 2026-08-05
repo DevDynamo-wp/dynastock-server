@@ -2,7 +2,7 @@
 # FILE: catalog/serializers.py
 # ============================================================
 from rest_framework import serializers
-from apps.catalog.models import Category, Product
+from apps.catalog.models import Category, Product, Supplier
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -20,3 +20,9 @@ class ProductSerializer(serializers.ModelSerializer):
             'image_url', 'purchase_price', 'selling_price',
             'quantity', 'minimum_quantity', 'unit', 'created_at',
         ]
+        
+        
+class SupplierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Supplier
+        fields = ['id', 'store', 'name', 'phone', 'address', 'created_at']

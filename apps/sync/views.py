@@ -24,8 +24,8 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
-from apps.catalog.models import Category, Product
-from apps.catalog.serializers import CategorySerializer, ProductSerializer
+from apps.catalog.models import Category, Product, Supplier
+from apps.catalog.serializers import CategorySerializer, ProductSerializer, SupplierSerializer
 
 from apps.subscriptions.permissions import HasWriteAccess
 
@@ -131,6 +131,22 @@ class SyncPushView(APIView):
                 if payload_key in op.payload:
                     setattr(product, field, op.payload[payload_key])
             product.save()
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_SUPPLIER:
+            Supplier.objects.create(
+                id=op.entity_id,
+                store_id=op.store_id,
+                name=op.payload['name'],
+                phone=op.payload.get('phone', ''),
+                address=op.payload.get('address', ''),
+            )
+
+        elif op.operation_type == JournalOperation.OperationType.UPDATE_SUPPLIER:
+            supplier = Supplier.objects.get(id=op.entity_id)
+            for field in ('name', 'phone', 'address'):
+                if field in op.payload:
+                    setattr(supplier, field, op.payload[field])
+            supplier.save()
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -145,6 +161,7 @@ class SyncBootstrapView(APIView):
         stores = Store.objects.filter(id__in=store_ids)
         categories = Category.objects.filter(store_id__in=store_ids)
         products = Product.objects.filter(store_id__in=store_ids)
+        suppliers = Supplier.objects.filter(store_id__in=store_ids)
 
         roles_by_store = dict(
             UserStore.objects.filter(user=user).values_list('store_id', 'role')
@@ -156,6 +173,7 @@ class SyncBootstrapView(APIView):
             'stores': StoreSerializer(stores, many=True).data,
             'categories': CategorySerializer(categories, many=True).data,
             'products': ProductSerializer(products, many=True).data,
+            'suppliers': SupplierSerializer(suppliers, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur
             # 'customers': [...],  # idem
         })
