@@ -26,6 +26,8 @@ class JournalOperation(models.Model):
         UPDATE_PRODUCT = 'UPDATE_PRODUCT', 'Modifier un produit'
         CREATE_SUPPLIER = 'CREATE_SUPPLIER', 'Créer un fournisseur'
         UPDATE_SUPPLIER = 'UPDATE_SUPPLIER', 'Modifier un fournisseur'
+        CREATE_CUSTOMER = 'CREATE_CUSTOMER', 'Créer un client'
+        UPDATE_CUSTOMER = 'UPDATE_CUSTOMER', 'Modifier un client'
         # TODO : CREATE_CUSTOMER / UPDATE_CUSTOMER à la phase suivante.
         # au fur et à mesure que ces entités seront modélisées
         # côté serveur (phases futures).

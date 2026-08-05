@@ -24,8 +24,8 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
-from apps.catalog.models import Category, Product, Supplier
-from apps.catalog.serializers import CategorySerializer, ProductSerializer, SupplierSerializer
+from apps.catalog.models import Category, Product, Supplier, Customer
+from apps.catalog.serializers import CategorySerializer, ProductSerializer, SupplierSerializer, CustomerSerializer
 
 from apps.subscriptions.permissions import HasWriteAccess
 
@@ -147,6 +147,24 @@ class SyncPushView(APIView):
                 if field in op.payload:
                     setattr(supplier, field, op.payload[field])
             supplier.save()
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_CUSTOMER:
+            Customer.objects.create(
+                id=op.entity_id,
+                store_id=op.store_id,
+                name=op.payload['name'],
+                phone=op.payload.get('phone', ''),
+                address=op.payload.get('address', ''),
+                remark=op.payload.get('remark', ''),
+                debt_amount=op.payload.get('debt_amount', 0),
+            )
+
+        elif op.operation_type == JournalOperation.OperationType.UPDATE_CUSTOMER:
+            customer = Customer.objects.get(id=op.entity_id)
+            for field in ('name', 'phone', 'address', 'remark', 'debt_amount'):
+                if field in op.payload:
+                    setattr(customer, field, op.payload[field])
+            customer.save()
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -162,6 +180,7 @@ class SyncBootstrapView(APIView):
         categories = Category.objects.filter(store_id__in=store_ids)
         products = Product.objects.filter(store_id__in=store_ids)
         suppliers = Supplier.objects.filter(store_id__in=store_ids)
+        customers = Customer.objects.filter(store_id__in=store_ids)
 
         roles_by_store = dict(
             UserStore.objects.filter(user=user).values_list('store_id', 'role')
@@ -174,6 +193,7 @@ class SyncBootstrapView(APIView):
             'categories': CategorySerializer(categories, many=True).data,
             'products': ProductSerializer(products, many=True).data,
             'suppliers': SupplierSerializer(suppliers, many=True).data,
+            'customers': CustomerSerializer(customers, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur
             # 'customers': [...],  # idem
         })

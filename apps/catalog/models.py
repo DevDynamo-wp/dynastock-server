@@ -85,3 +85,33 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
+    
+    
+class Customer(models.Model):
+    """
+    Client (Module 8). Même logique que Supplier : l'id est généré
+    côté Flutter (création hors ligne possible), le serveur enregistre
+    via le journal.
+
+    debtAmount : dette client accumulée (payements différés).
+    Initialisé à 0, modifié uniquement par des mouvements financiers
+    (Vente crédit, Paiement) dans les phases futures (V3+).
+    Pour l'instant, c'est un tracker simple pour la gestion manuelle.
+    """
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='customers')
+
+    name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=30, blank=True, default='')
+    address = models.CharField(max_length=255, blank=True, default='')
+    remark = models.TextField(blank=True, default='')
+
+    debt_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text='Dette client accumulée'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

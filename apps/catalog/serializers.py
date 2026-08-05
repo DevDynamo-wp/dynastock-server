@@ -2,7 +2,7 @@
 # FILE: catalog/serializers.py
 # ============================================================
 from rest_framework import serializers
-from apps.catalog.models import Category, Product, Supplier
+from apps.catalog.models import Category, Product, Supplier, Customer
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -26,3 +26,10 @@ class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
         fields = ['id', 'store', 'name', 'phone', 'address', 'created_at']
+        
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'store', 'name', 'phone', 'address', 'remark', 'debt_amount', 'created_at']
