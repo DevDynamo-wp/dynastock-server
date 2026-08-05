@@ -115,3 +115,107 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+    
+    
+class Sale(models.Model):
+    """
+    Vente (Module 6 - Inventory). Une transaction avec un client 
+    (optionnel, vente anonyme possible) et des lignes de produits.
+    
+    L'id est généré côté Flutter. Le serveur le reçoit via le journal
+    et enregistre la vente.
+    
+    Chaque vente génère automatiquement des mouvements de stock
+    (sorties) lors de la création côté serveur, via _create_stock_movements().
+    """
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='sales')
+    customer = models.ForeignKey(
+        'Customer', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sales'
+    )
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sales'
+    )
+
+    # Totaux calculés : actualisés lors de la création/modif des lignes
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_quantity = models.IntegerField(default=0)
+
+    # Métadonnées
+    sale_date = models.DateTimeField()  # Moment de la vente (côté client)
+    created_at = models.DateTimeField(auto_now_add=True)  # Timestamp du serveur
+
+    class Meta:
+        ordering = ['-sale_date']
+
+    def __str__(self):
+        return f"Vente {self.id} ({self.total_quantity} items)"
+
+
+class SaleLine(models.Model):
+    """
+    Ligne de vente : chaque produit vendu dans une vente.
+    
+    Stocke le prix AU MOMENT DE LA VENTE (pas une FK vers le prix
+    courant du produit) : historique immuable des transactions.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='lines')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='sale_lines')
+
+    quantity = models.IntegerField()
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)  # Prix à la vente
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)  # quantity * unit_price
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product.name} x{self.quantity}"
+
+
+class StockMovement(models.Model):
+    """
+    Mouvement de stock (Module 6 - Inventory). Enregistre chaque
+    variation (vente, réappro, ajustement, transfert).
+    
+    Stratégie de synchronisation : plutôt que d'envoyer des états
+    (Product.quantity = 95), on envoie des mouvements qui sont
+    rejoués sur le serveur. Évite les conflits multi-appareils.
+    
+    L'id est généré côté Flutter. Le serveur reçoit via le journal.
+    """
+    class MovementType(models.TextChoices):
+        SALE = 'SALE', 'Vente'
+        RESTOCK = 'RESTOCK', 'Réapprovisionnement'
+        ADJUSTMENT = 'ADJUSTMENT', 'Ajustement'
+        TRANSFER = 'TRANSFER', 'Transfert'  # V2+
+
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='stock_movements')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='stock_movements')
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_movements'
+    )
+
+    movement_type = models.CharField(max_length=20, choices=MovementType.choices)
+    quantity_delta = models.IntegerField()  # Négatif pour une sortie (vente), positif pour une entrée
+    
+    # Références optionnelles selon le type
+    sale = models.ForeignKey(
+        Sale, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_movements'
+    )
+    # Plus tard : restock_order FK, adjustment reason, etc.
+
+    # Métadonnées
+    movement_date = models.DateTimeField()  # Moment du mouvement (côté client)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-movement_date']
+
+    def __str__(self):
+        return f"{self.get_movement_type_display()} {self.product.name} ({self.quantity_delta:+d})"

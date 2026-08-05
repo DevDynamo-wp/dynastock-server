@@ -24,8 +24,11 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
-from apps.catalog.models import Category, Product, Supplier, Customer
-from apps.catalog.serializers import CategorySerializer, ProductSerializer, SupplierSerializer, CustomerSerializer
+from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, StockMovement
+from apps.catalog.serializers import (
+    CategorySerializer, ProductSerializer, SupplierSerializer, 
+    CustomerSerializer, SaleSerializer, StockMovementSerializer
+)
 
 from apps.subscriptions.permissions import HasWriteAccess
 
@@ -165,9 +168,108 @@ class SyncPushView(APIView):
                 if field in op.payload:
                     setattr(customer, field, op.payload[field])
             customer.save()
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_SALE:
+            self._create_sale(op)
+
+        elif op.operation_type == JournalOperation.OperationType.CREATE_RESTOCK:
+            self._create_stock_movement(op, StockMovement.MovementType.RESTOCK)
+
+        elif op.operation_type == JournalOperation.OperationType.CREATE_ADJUSTMENT:
+            self._create_stock_movement(op, StockMovement.MovementType.ADJUSTMENT)
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
+    
+        
+    def _create_sale(self, op: JournalOperation):
+        """
+        Crée une vente et ses lignes depuis le payload, puis génère
+        automatiquement des mouvements de stock (sorties).
+        
+        Payload attendu :
+        {
+            'customer_id': null ou UUID,
+            'sale_date': ISO8601,
+            'lines': [
+                {'product_id': UUID, 'quantity': int, 'unit_price': decimal},
+                ...
+            ]
+        }
+        """
+        payload = op.payload
+        customer_id = payload.get('customer_id')
+        
+        sale = Sale.objects.create(
+            id=op.entity_id,
+            store_id=op.store_id,
+            customer_id=customer_id,
+            user=op.user,
+            sale_date=payload['sale_date'],
+        )
+        
+        total_amount = 0
+        total_quantity = 0
+        
+        for line_data in payload.get('lines', []):
+            product_id = line_data['product_id']
+            quantity = line_data['quantity']
+            unit_price = line_data['unit_price']
+            subtotal = quantity * unit_price
+            
+            SaleLine.objects.create(
+                sale=sale,
+                product_id=product_id,
+                quantity=quantity,
+                unit_price=unit_price,
+                subtotal=subtotal,
+            )
+            
+            total_amount += subtotal
+            total_quantity += quantity
+            
+            # Génère un mouvement de stock (sortie = quantité négative)
+            StockMovement.objects.create(
+                id=str(uuid.uuid4()),  # Nouveau UUID pour le mouvement
+                store_id=op.store_id,
+                product_id=product_id,
+                user=op.user,
+                movement_type=StockMovement.MovementType.SALE,
+                quantity_delta=-quantity,  # Négatif = sortie
+                sale=sale,
+                movement_date=payload['sale_date'],
+            )
+        
+        sale.total_amount = total_amount
+        sale.total_quantity = total_quantity
+        sale.save()
+
+    def _create_stock_movement(self, op: JournalOperation, movement_type: str):
+        """
+        Crée un mouvement de stock (réappro ou ajustement).
+        
+        Payload attendu :
+        {
+            'product_id': UUID,
+            'quantity_delta': int (positif pour entrée, négatif pour sortie),
+            'movement_date': ISO8601,
+            'reason': str (ajustement uniquement)
+        }
+        """
+        payload = op.payload
+        
+        StockMovement.objects.create(
+            id=op.entity_id,
+            store_id=op.store_id,
+            product_id=payload['product_id'],
+            user=op.user,
+            movement_type=movement_type,
+            quantity_delta=payload['quantity_delta'],
+            movement_date=payload['movement_date'],
+        )
+
+    # Ajoute l'import en haut du fichier
+    import uuid
 
 
 class SyncBootstrapView(APIView):
@@ -181,6 +283,8 @@ class SyncBootstrapView(APIView):
         products = Product.objects.filter(store_id__in=store_ids)
         suppliers = Supplier.objects.filter(store_id__in=store_ids)
         customers = Customer.objects.filter(store_id__in=store_ids)
+        sales = Sale.objects.filter(store_id__in=store_ids)
+        stock_movements = StockMovement.objects.filter(store_id__in=store_ids)
 
         roles_by_store = dict(
             UserStore.objects.filter(user=user).values_list('store_id', 'role')
@@ -194,6 +298,8 @@ class SyncBootstrapView(APIView):
             'products': ProductSerializer(products, many=True).data,
             'suppliers': SupplierSerializer(suppliers, many=True).data,
             'customers': CustomerSerializer(customers, many=True).data,
+            'sales': SaleSerializer(sales, many=True).data,
+            'stock_movements': StockMovementSerializer(stock_movements, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur
             # 'customers': [...],  # idem
         })
