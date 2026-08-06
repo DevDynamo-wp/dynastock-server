@@ -178,18 +178,18 @@ class SaleLine(models.Model):
 class StockMovement(models.Model):
     """
     Mouvement de stock (Module 6 - Inventory). Enregistre chaque
-    variation (vente, réappro, ajustement, transfert).
-    
-    Stratégie de synchronisation : plutôt que d'envoyer des états
-    (Product.quantity = 95), on envoie des mouvements qui sont
-    rejoués sur le serveur. Évite les conflits multi-appareils.
-    
-    L'id est généré côté Flutter. Le serveur reçoit via le journal.
+    variation (vente, réappro, ajustement, comptage d'inventaire).
+
+    note : texte libre (motif d'ajustement, "Comptage physique"...).
+    customer : dénormalisé depuis Sale.customer au moment de la
+    création, pour retrouver rapidement l'historique d'achats d'un
+    client sans jointure supplémentaire (cf. CustomerDetailPage).
     """
     class MovementType(models.TextChoices):
         SALE = 'SALE', 'Vente'
         RESTOCK = 'RESTOCK', 'Réapprovisionnement'
         ADJUSTMENT = 'ADJUSTMENT', 'Ajustement'
+        INVENTORY = 'INVENTORY', 'Comptage d\'inventaire'
         TRANSFER = 'TRANSFER', 'Transfert'  # V2+
 
     id = models.UUIDField(primary_key=True, editable=False)
@@ -201,14 +201,17 @@ class StockMovement(models.Model):
     )
 
     movement_type = models.CharField(max_length=20, choices=MovementType.choices)
-    quantity_delta = models.IntegerField()  # Négatif pour une sortie (vente), positif pour une entrée
-    
-    # Références optionnelles selon le type
+    quantity_delta = models.IntegerField()
+    note = models.CharField(max_length=255, blank=True, null=True)
+
     sale = models.ForeignKey(
         Sale, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='stock_movements'
     )
-    # Plus tard : restock_order FK, adjustment reason, etc.
+    customer = models.ForeignKey(
+        'Customer', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_movements'
+    )
 
     # Métadonnées
     movement_date = models.DateTimeField()  # Moment du mouvement (côté client)

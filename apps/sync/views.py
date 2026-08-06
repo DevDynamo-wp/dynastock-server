@@ -179,6 +179,9 @@ class SyncPushView(APIView):
 
         elif op.operation_type == JournalOperation.OperationType.CREATE_ADJUSTMENT:
             self._create_stock_movement(op, StockMovement.MovementType.ADJUSTMENT)
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_INVENTORY_COUNT:
+            self._create_stock_movement(op, StockMovement.MovementType.INVENTORY)
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -239,6 +242,7 @@ class SyncPushView(APIView):
                 movement_type=StockMovement.MovementType.SALE,
                 quantity_delta=-quantity,  # Négatif = sortie
                 sale=sale,
+                customer_id=customer_id,
                 movement_date=payload['sale_date'],
             )
         
@@ -267,6 +271,7 @@ class SyncPushView(APIView):
             user=op.user,
             movement_type=movement_type,
             quantity_delta=payload['quantity_delta'],
+            note=payload.get('reason') or payload.get('note'),
             movement_date=payload['movement_date'],
         )
 

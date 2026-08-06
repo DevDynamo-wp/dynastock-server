@@ -55,8 +55,8 @@ class SaleSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    
+
     class Meta:
         model = StockMovement
         fields = ['id', 'store', 'product', 'product_name', 'user', 'movement_type',
-                  'quantity_delta', 'sale', 'movement_date', 'created_at']
+                  'quantity_delta', 'note', 'sale', 'customer', 'movement_date', 'created_at']
