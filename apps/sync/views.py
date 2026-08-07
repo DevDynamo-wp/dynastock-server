@@ -33,6 +33,7 @@ from apps.catalog.serializers import (
 )
 
 from apps.subscriptions.permissions import HasWriteAccess
+from django.db.models import F
 
 class SyncPushView(APIView):
     permission_classes = [permissions.IsAuthenticated, HasWriteAccess]
@@ -235,7 +236,7 @@ class SyncPushView(APIView):
             
             # Génère un mouvement de stock (sortie = quantité négative)
             StockMovement.objects.create(
-                id=str(uuid.uuid4()),  # Nouveau UUID pour le mouvement
+                id=str(uuid.uuid4()),
                 store_id=op.store_id,
                 product_id=product_id,
                 user=op.user,
@@ -245,6 +246,14 @@ class SyncPushView(APIView):
                 customer_id=customer_id,
                 movement_date=payload['sale_date'],
             )
+
+            # ⭐ LA LIGNE QUI MANQUAIT : applique enfin le mouvement au
+            # stock réel. F('quantity') = update atomique côté SQL,
+            # évite un race condition si deux ventes du même produit
+            # arrivent en même temps sur deux appareils différents.
+            Product.objects.filter(id=product_id).update(
+                quantity=F('quantity') - quantity
+            )
         
         sale.total_amount = total_amount
         sale.total_quantity = total_quantity
@@ -252,18 +261,11 @@ class SyncPushView(APIView):
 
     def _create_stock_movement(self, op: JournalOperation, movement_type: str):
         """
-        Crée un mouvement de stock (réappro ou ajustement).
-        
-        Payload attendu :
-        {
-            'product_id': UUID,
-            'quantity_delta': int (positif pour entrée, négatif pour sortie),
-            'movement_date': ISO8601,
-            'reason': str (ajustement uniquement)
-        }
+        Crée un mouvement de stock (réappro, ajustement, inventaire)
+        ET applique le delta au stock réel du produit.
         """
         payload = op.payload
-        
+
         StockMovement.objects.create(
             id=op.entity_id,
             store_id=op.store_id,
@@ -275,8 +277,10 @@ class SyncPushView(APIView):
             movement_date=payload['movement_date'],
         )
 
-    # Ajoute l'import en haut du fichier
-    import uuid
+        # ⭐ Idem : applique le delta au stock réel.
+        Product.objects.filter(id=payload['product_id']).update(
+            quantity=F('quantity') + payload['quantity_delta']
+        )
 
 
 class SyncBootstrapView(APIView):
