@@ -58,6 +58,11 @@ class Product(models.Model):
     minimum_quantity = models.IntegerField(default=0)
     unit = models.CharField(max_length=50)
 
+    expiry_date = models.DateField(
+        null=True, blank=True,
+        help_text="Date de péremption (facultative — secteurs concernés uniquement)"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

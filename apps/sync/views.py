@@ -125,6 +125,7 @@ class SyncPushView(APIView):
                 quantity=op.payload.get('quantity', 0),
                 minimum_quantity=op.payload.get('minimum_quantity', 0),
                 unit=op.payload['unit'],
+                expiry_date=op.payload.get('expiry_date'),
             )
 
         elif op.operation_type == JournalOperation.OperationType.UPDATE_PRODUCT:
@@ -132,7 +133,7 @@ class SyncPushView(APIView):
             product = Product.objects.get(id=op.entity_id)
             for field in ('category_id', 'name', 'reference', 'barcode',
                         'image_url', 'purchase_price', 'selling_price',
-                        'minimum_quantity', 'unit'):
+                        'minimum_quantity', 'unit', 'expiry_date'):
                 payload_key = 'category_id' if field == 'category_id' else field
                 if payload_key in op.payload:
                     setattr(product, field, op.payload[payload_key])
