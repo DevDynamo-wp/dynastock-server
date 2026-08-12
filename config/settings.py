@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.sync',
     'apps.catalog',
     'apps.subscriptions',
+    'apps.expenses',
 ]
 
 # ============================================================

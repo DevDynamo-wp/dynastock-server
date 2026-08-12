@@ -31,6 +31,8 @@ from apps.catalog.serializers import (
     CategorySerializer, ProductSerializer, SupplierSerializer, 
     CustomerSerializer, SaleSerializer, StockMovementSerializer
 )
+from apps.expenses.models import Expense
+from apps.expenses.serializers import ExpenseSerializer
 
 from apps.subscriptions.permissions import HasWriteAccess
 from django.db.models import F
@@ -184,6 +186,26 @@ class SyncPushView(APIView):
             
         elif op.operation_type == JournalOperation.OperationType.CREATE_INVENTORY_COUNT:
             self._create_stock_movement(op, StockMovement.MovementType.INVENTORY)
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_EXPENSE:
+            Expense.objects.create(
+                id=op.entity_id,
+                store_id=op.store_id,
+                category=op.payload.get('category', ''),
+                description=op.payload.get('description', ''),
+                amount=op.payload['amount'],
+                expense_date=op.payload['expense_date'],
+            )
+
+        elif op.operation_type == JournalOperation.OperationType.UPDATE_EXPENSE:
+            expense = Expense.objects.get(id=op.entity_id)
+            for field in ('category', 'description', 'amount', 'expense_date'):
+                if field in op.payload:
+                    setattr(expense, field, op.payload[field])
+            expense.save()
+
+        elif op.operation_type == JournalOperation.OperationType.DELETE_EXPENSE:
+            Expense.objects.filter(id=op.entity_id).delete()
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -295,6 +317,7 @@ class SyncBootstrapView(APIView):
         products = Product.objects.filter(store_id__in=store_ids)
         suppliers = Supplier.objects.filter(store_id__in=store_ids)
         customers = Customer.objects.filter(store_id__in=store_ids)
+        expenses = Expense.objects.filter(store_id__in=store_ids)
         sales = Sale.objects.filter(store_id__in=store_ids)
         stock_movements = StockMovement.objects.filter(store_id__in=store_ids)
 
@@ -310,6 +333,7 @@ class SyncBootstrapView(APIView):
             'products': ProductSerializer(products, many=True).data,
             'suppliers': SupplierSerializer(suppliers, many=True).data,
             'customers': CustomerSerializer(customers, many=True).data,
+            'expenses': ExpenseSerializer(expenses, many=True).data,
             'sales': SaleSerializer(sales, many=True).data,
             'stock_movements': StockMovementSerializer(stock_movements, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur

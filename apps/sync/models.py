@@ -32,9 +32,9 @@ class JournalOperation(models.Model):
         CREATE_RESTOCK = 'CREATE_RESTOCK', 'Réapprovisionner'
         CREATE_ADJUSTMENT = 'CREATE_ADJUSTMENT', 'Ajuster le stock'
         CREATE_INVENTORY_COUNT = 'CREATE_INVENTORY_COUNT', 'Comptage d\'inventaire'
-        # TODO : CREATE_CUSTOMER / UPDATE_CUSTOMER à la phase suivante.
-        # au fur et à mesure que ces entités seront modélisées
-        # côté serveur (phases futures).
+        CREATE_EXPENSE = 'CREATE_EXPENSE', 'Créer une dépense'
+        UPDATE_EXPENSE = 'UPDATE_EXPENSE', 'Modifier une dépense'
+        DELETE_EXPENSE = 'DELETE_EXPENSE', 'Supprimer une dépense'
 
     id = models.UUIDField(primary_key=True, editable=False)
 
