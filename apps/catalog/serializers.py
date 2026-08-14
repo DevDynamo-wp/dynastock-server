@@ -77,4 +77,4 @@ class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockMovement
         fields = ['id', 'store', 'product', 'product_name', 'user', 'movement_type',
-                  'quantity_delta', 'note', 'sale', 'customer', 'movement_date', 'created_at']
+                  'quantity_delta', 'note', 'sale', 'purchase', 'customer', 'movement_date', 'created_at']

@@ -267,6 +267,10 @@ class StockMovement(models.Model):
         'Customer', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='stock_movements'
     )
+    purchase = models.ForeignKey(
+        'Purchase', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_movements'
+    )
 
     # Métadonnées
     movement_date = models.DateTimeField()  # Moment du mouvement (côté client)

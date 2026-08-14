@@ -361,6 +361,7 @@ class SyncPushView(APIView):
                 user=op.user,
                 movement_type=StockMovement.MovementType.RESTOCK,
                 quantity_delta=quantity,  # Positif = entrée
+                purchase=purchase,
                 movement_date=payload['purchase_date'],
             )
 
