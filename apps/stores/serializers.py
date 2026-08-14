@@ -65,11 +65,19 @@ class AcceptInvitationSerializer(serializers.Serializer):
 
 class StoreMemberSerializer(serializers.ModelSerializer):
     """Un membre d'une boutique (propriétaire ou gérant), pour
-    l'écran 'Gérants' (Niveau 4 du plan)."""
+    l'écran 'Gérants' (Niveau 4 du plan).
+
+    `id` reste l'id de la relation UserStore (utilisé pour la
+    suppression d'un gérant, cf. StoreMemberRemoveView). `user_id`
+    est ajouté séparément : c'est le VRAI id utilisateur, celui
+    qu'on retrouve ailleurs comme opened_by/closed_by sur
+    CashSession, created_by sur d'autres entités, etc. Les deux ids
+    sont différents et ne doivent pas être confondus."""
+    user_id = serializers.CharField(source='user.id', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
     full_name = serializers.CharField(source='user.full_name', read_only=True)
 
     class Meta:
         model = UserStore
-        fields = ['id', 'email', 'full_name', 'role', 'status', 'joined_at']
+        fields = ['id', 'user_id', 'email', 'full_name', 'role', 'status', 'joined_at']
         read_only_fields = fields
