@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.catalog',
     'apps.subscriptions',
     'apps.expenses',
+    'apps.cashier',
 ]
 
 # ============================================================
