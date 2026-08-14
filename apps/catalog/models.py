@@ -178,6 +178,56 @@ class SaleLine(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x{self.quantity}"
+    
+    
+class Purchase(models.Model):
+    """
+    Achat fournisseur (Module Achats). Miroir de Sale, mais côté
+    entrée de stock plutôt que sortie : un fournisseur (optionnel,
+    achat "libre" possible) et des lignes de produits.
+
+    L'id est généré côté Flutter. Chaque ligne génère un mouvement
+    de stock RESTOCK côté serveur, comme Sale le fait pour ses
+    sorties (_create_stock_movements()).
+    """
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='purchases')
+    supplier = models.ForeignKey(
+        'Supplier', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='purchases'
+    )
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='purchases'
+    )
+
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_quantity = models.IntegerField(default=0)
+
+    purchase_date = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Achat {self.id} — {self.store.name}'
+
+
+class PurchaseLine(models.Model):
+    """
+    Ligne d'achat : chaque produit reçu dans cet achat. Stocke le
+    coût AU MOMENT DE L'ACHAT (pas une FK vers purchase_price
+    courant du produit) — même principe que SaleLine.unit_price :
+    historique immuable, purchase_price du produit n'est PAS
+    modifié automatiquement (choix produit assumé).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name='lines')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='purchase_lines')
+
+    quantity = models.IntegerField()
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class StockMovement(models.Model):

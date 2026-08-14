@@ -37,6 +37,7 @@ class JournalOperation(models.Model):
         DELETE_EXPENSE = 'DELETE_EXPENSE', 'Supprimer une dépense'
         CREATE_CASH_SESSION = 'CREATE_CASH_SESSION', 'Ouvrir une session de caisse'
         CLOSE_CASH_SESSION = 'CLOSE_CASH_SESSION', 'Fermer une session de caisse'
+        CREATE_PURCHASE = 'CREATE_PURCHASE', 'Créer un achat'
 
     id = models.UUIDField(primary_key=True, editable=False)
 

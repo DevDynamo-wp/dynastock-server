@@ -26,10 +26,10 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
-from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, StockMovement
+from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, Purchase, PurchaseLine, StockMovement
 from apps.catalog.serializers import (
     CategorySerializer, ProductSerializer, SupplierSerializer, 
-    CustomerSerializer, SaleSerializer, StockMovementSerializer
+    CustomerSerializer, SaleSerializer, PurchaseSerializer, StockMovementSerializer
 )
 from apps.cashier.models import CashSession
 from apps.cashier.serializers import CashSessionSerializer
@@ -179,6 +179,9 @@ class SyncPushView(APIView):
             
         elif op.operation_type == JournalOperation.OperationType.CREATE_SALE:
             self._create_sale(op)
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_PURCHASE:
+            self._create_purchase(op)
 
         elif op.operation_type == JournalOperation.OperationType.CREATE_RESTOCK:
             self._create_stock_movement(op, StockMovement.MovementType.RESTOCK)
@@ -302,6 +305,74 @@ class SyncPushView(APIView):
         sale.total_amount = total_amount
         sale.total_quantity = total_quantity
         sale.save()
+        
+        
+    def _create_purchase(self, op: JournalOperation):
+        """
+        Crée un achat et ses lignes depuis le payload, puis génère
+        automatiquement des mouvements de stock (entrées).
+
+        Payload attendu :
+        {
+            'supplier_id': null ou UUID,
+            'purchase_date': ISO8601,
+            'lines': [
+                {'product_id': UUID, 'quantity': int, 'unit_cost': decimal},
+                ...
+            ]
+        }
+        """
+        payload = op.payload
+        supplier_id = payload.get('supplier_id')
+
+        purchase = Purchase.objects.create(
+            id=op.entity_id,
+            store_id=op.store_id,
+            supplier_id=supplier_id,
+            user=op.user,
+            purchase_date=payload['purchase_date'],
+        )
+
+        total_amount = 0
+        total_quantity = 0
+
+        for line_data in payload.get('lines', []):
+            product_id = line_data['product_id']
+            quantity = line_data['quantity']
+            unit_cost = line_data['unit_cost']
+            subtotal = quantity * unit_cost
+
+            PurchaseLine.objects.create(
+                purchase=purchase,
+                product_id=product_id,
+                quantity=quantity,
+                unit_cost=unit_cost,
+                subtotal=subtotal,
+            )
+
+            total_amount += subtotal
+            total_quantity += quantity
+
+            # Génère un mouvement de stock (entrée = quantité positive)
+            StockMovement.objects.create(
+                id=str(uuid.uuid4()),
+                store_id=op.store_id,
+                product_id=product_id,
+                user=op.user,
+                movement_type=StockMovement.MovementType.RESTOCK,
+                quantity_delta=quantity,  # Positif = entrée
+                movement_date=payload['purchase_date'],
+            )
+
+            # Même principe que _create_sale : update atomique F().
+            Product.objects.filter(id=product_id).update(
+                quantity=F('quantity') + quantity
+            )
+
+        purchase.total_amount = total_amount
+        purchase.total_quantity = total_quantity
+        purchase.save()
+        
 
     def _create_stock_movement(self, op: JournalOperation, movement_type: str):
         """
@@ -340,6 +411,7 @@ class SyncBootstrapView(APIView):
         customers = Customer.objects.filter(store_id__in=store_ids)
         expenses = Expense.objects.filter(store_id__in=store_ids)
         cash_sessions = CashSession.objects.filter(store_id__in=store_ids)
+        purchases = Purchase.objects.filter(store_id__in=store_ids)
         sales = Sale.objects.filter(store_id__in=store_ids)
         stock_movements = StockMovement.objects.filter(store_id__in=store_ids)
 
@@ -357,6 +429,7 @@ class SyncBootstrapView(APIView):
             'customers': CustomerSerializer(customers, many=True).data,
             'expenses': ExpenseSerializer(expenses, many=True).data,
             'cash_sessions': CashSessionSerializer(cash_sessions, many=True).data,
+            'purchases': PurchaseSerializer(purchases, many=True).data,
             'sales': SaleSerializer(sales, many=True).data,
             'stock_movements': StockMovementSerializer(stock_movements, many=True).data,
             # 'products': [...],   # ajouté quand Product existera côté serveur

@@ -2,7 +2,7 @@
 # FILE: catalog/serializers.py
 # ============================================================
 from rest_framework import serializers
-from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, StockMovement
+from apps.catalog.models import Category, Product, Purchase, PurchaseLine, Supplier, Customer, Sale, SaleLine, StockMovement
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -51,6 +51,24 @@ class SaleSerializer(serializers.ModelSerializer):
         model = Sale
         fields = ['id', 'store', 'customer', 'customer_name', 'user', 'total_amount', 
                   'total_quantity', 'sale_date', 'lines', 'created_at']
+        
+        
+class PurchaseLineSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
+    class Meta:
+        model = PurchaseLine
+        fields = ['id', 'product', 'product_name', 'quantity', 'unit_cost', 'subtotal', 'created_at']
+
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    lines = PurchaseLineSerializer(many=True, read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Purchase
+        fields = ['id', 'store', 'supplier', 'supplier_name', 'user', 'total_amount',
+                  'total_quantity', 'purchase_date', 'lines', 'created_at']
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
