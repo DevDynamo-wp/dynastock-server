@@ -271,6 +271,23 @@ class StockMovement(models.Model):
         'Purchase', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='stock_movements'
     )
+    # Réapprovisionnement SIMPLE (1 produit, via StockMovementSheet) :
+    # pas de Purchase multi-lignes associée, mais on veut quand même
+    # savoir chez quel fournisseur. `purchase` reste réservé au flux
+    # "achat groupé" (PurchaseFormPage).
+    supplier = models.ForeignKey(
+        'Supplier', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_movements'
+    )
+
+    # Traçabilité des changements de prix pendant un réappro. Les
+    # DEUX sont nullables : renseignés uniquement si le prix a
+    # effectivement changé à ce mouvement précis (pas systématique).
+    # 'ancien prix' n'est PAS stocké ici : il se déduit du mouvement
+    # précédent portant un old/new_* non nul, ou du prix courant du
+    # produit si aucun mouvement antérieur n'en porte.
+    new_purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    new_selling_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     # Métadonnées
     movement_date = models.DateTimeField()  # Moment du mouvement (côté client)

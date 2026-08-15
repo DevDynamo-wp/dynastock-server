@@ -73,8 +73,12 @@ class PurchaseSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    user_name = serializers.CharField(source='user.full_name', read_only=True, allow_null=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
 
     class Meta:
         model = StockMovement
-        fields = ['id', 'store', 'product', 'product_name', 'user', 'movement_type',
-                  'quantity_delta', 'note', 'sale', 'purchase', 'customer', 'movement_date', 'created_at']
+        fields = ['id', 'store', 'product', 'product_name', 'user', 'user_name', 'movement_type',
+                  'quantity_delta', 'note', 'sale', 'customer', 'purchase', 'supplier',
+                  'supplier_name', 'new_purchase_price', 'new_selling_price',
+                  'movement_date', 'created_at']

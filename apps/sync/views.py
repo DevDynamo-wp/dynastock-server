@@ -379,6 +379,13 @@ class SyncPushView(APIView):
         """
         Crée un mouvement de stock (réappro, ajustement, inventaire)
         ET applique le delta au stock réel du produit.
+
+        Un réapprovisionnement (RESTOCK) peut porter en plus :
+        - supplier_id : fournisseur associé (optionnel)
+        - new_purchase_price / new_selling_price : si les prix ont
+          changé à ce réappro précis, on les enregistre ET on met à
+          jour le produit (comme un UPDATE_PRODUCT), dans la même
+          opération pour rester atomique.
         """
         payload = op.payload
 
@@ -390,6 +397,9 @@ class SyncPushView(APIView):
             movement_type=movement_type,
             quantity_delta=payload['quantity_delta'],
             note=payload.get('reason') or payload.get('note'),
+            supplier_id=payload.get('supplier_id'),
+            new_purchase_price=payload.get('new_purchase_price'),
+            new_selling_price=payload.get('new_selling_price'),
             movement_date=payload['movement_date'],
         )
 
@@ -397,6 +407,15 @@ class SyncPushView(APIView):
         Product.objects.filter(id=payload['product_id']).update(
             quantity=F('quantity') + payload['quantity_delta']
         )
+
+        # Prix changés à ce réappro -> répercutés sur la fiche produit.
+        price_updates = {}
+        if payload.get('new_purchase_price') is not None:
+            price_updates['purchase_price'] = payload['new_purchase_price']
+        if payload.get('new_selling_price') is not None:
+            price_updates['selling_price'] = payload['new_selling_price']
+        if price_updates:
+            Product.objects.filter(id=payload['product_id']).update(**price_updates)
 
 
 class SyncBootstrapView(APIView):
