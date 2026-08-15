@@ -38,6 +38,9 @@ class JournalOperation(models.Model):
         CREATE_CASH_SESSION = 'CREATE_CASH_SESSION', 'Ouvrir une session de caisse'
         CLOSE_CASH_SESSION = 'CLOSE_CASH_SESSION', 'Fermer une session de caisse'
         CREATE_PURCHASE = 'CREATE_PURCHASE', 'Créer un achat'
+        CREATE_EMPLOYEE = 'CREATE_EMPLOYEE', 'Créer un employé'
+        UPDATE_EMPLOYEE = 'UPDATE_EMPLOYEE', 'Modifier un employé'
+        DELETE_EMPLOYEE = 'DELETE_EMPLOYEE', 'Supprimer un employé'
 
     id = models.UUIDField(primary_key=True, editable=False)
 

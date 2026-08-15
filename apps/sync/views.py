@@ -35,6 +35,8 @@ from apps.cashier.models import CashSession
 from apps.cashier.serializers import CashSessionSerializer
 from apps.expenses.models import Expense
 from apps.expenses.serializers import ExpenseSerializer
+from apps.employees.models import Employee
+from apps.employees.serializers import EmployeeSerializer
 
 from apps.subscriptions.permissions import HasWriteAccess
 from django.db.models import F
@@ -230,6 +232,31 @@ class SyncPushView(APIView):
             session.difference = op.payload['difference']
             session.closed_at = op.payload['closed_at']
             session.save()
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_EMPLOYEE:
+            Employee.objects.create(
+                id=op.entity_id,
+                store_id=op.store_id,
+                name=op.payload['name'],
+                phone=op.payload.get('phone', ''),
+                position=op.payload.get('position', ''),
+                hire_date=op.payload.get('hire_date'),
+                salary=op.payload.get('salary'),
+                is_active=op.payload.get('is_active', True),
+                linked_member_id=op.payload.get('linked_member_id'),
+            )
+
+        elif op.operation_type == JournalOperation.OperationType.UPDATE_EMPLOYEE:
+            employee = Employee.objects.get(id=op.entity_id)
+            for field in ('name', 'phone', 'position', 'hire_date', 'salary', 'is_active'):
+                if field in op.payload:
+                    setattr(employee, field, op.payload[field])
+            if 'linked_member_id' in op.payload:
+                employee.linked_member_id = op.payload['linked_member_id']
+            employee.save()
+
+        elif op.operation_type == JournalOperation.OperationType.DELETE_EMPLOYEE:
+            Employee.objects.filter(id=op.entity_id).delete()
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -425,6 +452,7 @@ class SyncBootstrapView(APIView):
         user = request.user
         store_ids = UserStore.objects.filter(user=user).values_list('store_id', flat=True)
         stores = Store.objects.filter(id__in=store_ids)
+        employees = Employee.objects.filter(store_id__in=store_ids)
         categories = Category.objects.filter(store_id__in=store_ids)
         products = Product.objects.filter(store_id__in=store_ids)
         suppliers = Supplier.objects.filter(store_id__in=store_ids)
@@ -443,6 +471,7 @@ class SyncBootstrapView(APIView):
 
         return Response({
             'stores': StoreSerializer(stores, many=True).data,
+            'employees': EmployeeSerializer(employees, many=True).data,
             'categories': CategorySerializer(categories, many=True).data,
             'products': ProductSerializer(products, many=True).data,
             'suppliers': SupplierSerializer(suppliers, many=True).data,
