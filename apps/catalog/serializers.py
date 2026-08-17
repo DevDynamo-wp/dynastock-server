@@ -2,7 +2,7 @@
 # FILE: catalog/serializers.py
 # ============================================================
 from rest_framework import serializers
-from apps.catalog.models import Category, Product, Purchase, PurchaseLine, Supplier, Customer, Sale, SaleLine, StockMovement
+from apps.catalog.models import Category, Product, Purchase, PurchaseLine, Supplier, Customer, Sale, SaleLine, StockMovement,Payment
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -25,8 +25,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
-        fields = ['id', 'store', 'name', 'phone', 'address', 'created_at']
-        
+        fields = ['id', 'store', 'name', 'phone', 'address', 'debt_amount', 'created_at']        
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -49,7 +48,7 @@ class SaleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Sale
-        fields = ['id', 'store', 'customer', 'customer_name', 'user', 'total_amount', 
+        fields = ['id', 'store', 'customer', 'customer_name', 'user', 'total_amount', 'paid_amount',
                   'total_quantity', 'sale_date', 'lines', 'created_at']
         
         
@@ -67,7 +66,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Purchase
-        fields = ['id', 'store', 'supplier', 'supplier_name', 'user', 'total_amount',
+        fields = ['id', 'store', 'supplier', 'supplier_name', 'user', 'total_amount', 'paid_amount',
                   'total_quantity', 'purchase_date', 'lines', 'created_at']
 
 
@@ -82,3 +81,14 @@ class StockMovementSerializer(serializers.ModelSerializer):
                   'quantity_delta', 'note', 'sale', 'customer', 'purchase', 'supplier',
                   'supplier_name', 'new_purchase_price', 'new_selling_price',
                   'movement_date', 'created_at']
+        
+        
+        
+class PaymentSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.name', read_only=True, allow_null=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Payment
+        fields = ['id', 'store', 'direction', 'customer', 'customer_name', 'supplier', 'supplier_name',
+                  'sale', 'purchase', 'amount', 'method', 'note', 'payment_date', 'created_at']

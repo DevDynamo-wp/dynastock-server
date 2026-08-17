@@ -41,6 +41,7 @@ class JournalOperation(models.Model):
         CREATE_EMPLOYEE = 'CREATE_EMPLOYEE', 'Créer un employé'
         UPDATE_EMPLOYEE = 'UPDATE_EMPLOYEE', 'Modifier un employé'
         DELETE_EMPLOYEE = 'DELETE_EMPLOYEE', 'Supprimer un employé'
+        CREATE_PAYMENT = 'CREATE_PAYMENT', 'Enregistrer un paiement'
 
     id = models.UUIDField(primary_key=True, editable=False)
 

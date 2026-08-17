@@ -85,6 +85,10 @@ class Supplier(models.Model):
     name = models.CharField(max_length=150)
     phone = models.CharField(max_length=30, blank=True, default='')
     address = models.CharField(max_length=255, blank=True, default='')
+    debt_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text='Dette envers ce fournisseur (achats à crédit non réglés)'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -147,6 +151,7 @@ class Sale(models.Model):
     # Totaux calculés : actualisés lors de la création/modif des lignes
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_quantity = models.IntegerField(default=0)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     # Métadonnées
     sale_date = models.DateTimeField()  # Moment de la vente (côté client)
@@ -203,6 +208,7 @@ class Purchase(models.Model):
 
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_quantity = models.IntegerField(default=0)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     purchase_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -298,3 +304,67 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.get_movement_type_display()} {self.product.name} ({self.quantity_delta:+d})"
+    
+    
+    
+class Payment(models.Model):
+    """
+    Paiement (module Comptabilité). Règle soit une créance client
+    (direction = CUSTOMER_PAYMENT), soit une dette fournisseur
+    (direction = SUPPLIER_PAYMENT).
+
+    L'id est généré côté Flutter (création possible hors ligne),
+    même logique que Sale/Purchase.
+
+    sale / purchase : optionnels, permettent de cibler un paiement
+    sur une transaction précise. Sans cible, le paiement règle la
+    dette globale du client/fournisseur (debt_amount).
+
+    C'est _create_payment() qui, de façon atomique, met à jour
+    Customer.debt_amount ou Supplier.debt_amount ET le paid_amount
+    de la vente/achat visé le cas échéant.
+    """
+    class Direction(models.TextChoices):
+        CUSTOMER_PAYMENT = 'CUSTOMER_PAYMENT', 'Encaissement client'
+        SUPPLIER_PAYMENT = 'SUPPLIER_PAYMENT', 'Règlement fournisseur'
+
+    class Method(models.TextChoices):
+        CASH = 'CASH', 'Espèces'
+        MOBILE_MONEY = 'MOBILE_MONEY', 'Mobile Money'
+        BANK_TRANSFER = 'BANK_TRANSFER', 'Virement bancaire'
+        OTHER = 'OTHER', 'Autre'
+
+    id = models.UUIDField(primary_key=True, editable=False)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='payments')
+
+    direction = models.CharField(max_length=20, choices=Direction.choices)
+
+    customer = models.ForeignKey(
+        'Customer', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payments'
+    )
+    supplier = models.ForeignKey(
+        'Supplier', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payments'
+    )
+    sale = models.ForeignKey(
+        'Sale', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payments'
+    )
+    purchase = models.ForeignKey(
+        'Purchase', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payments'
+    )
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    method = models.CharField(max_length=20, choices=Method.choices, default=Method.CASH)
+    note = models.CharField(max_length=255, blank=True, default='')
+
+    payment_date = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f"Paiement {self.id} ({self.get_direction_display()}) — {self.amount}"

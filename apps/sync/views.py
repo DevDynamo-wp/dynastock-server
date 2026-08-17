@@ -26,7 +26,7 @@ from apps.stores.models import Store, UserStore
 from apps.stores.serializers import StoreSerializer
 from apps.sync.models import JournalOperation
 from apps.sync.serializers import PushSerializer
-from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, Purchase, PurchaseLine, StockMovement
+from apps.catalog.models import Category, Product, Supplier, Customer, Sale, SaleLine, Purchase, PurchaseLine, StockMovement, Payment
 from apps.catalog.serializers import (
     CategorySerializer, ProductSerializer, SupplierSerializer, 
     CustomerSerializer, SaleSerializer, PurchaseSerializer, StockMovementSerializer
@@ -257,6 +257,9 @@ class SyncPushView(APIView):
 
         elif op.operation_type == JournalOperation.OperationType.DELETE_EMPLOYEE:
             Employee.objects.filter(id=op.entity_id).delete()
+            
+        elif op.operation_type == JournalOperation.OperationType.CREATE_PAYMENT:
+            self._create_payment(op)
 
         else:
             raise ValueError(f"Type d'opération non géré : {op.operation_type}")
@@ -286,6 +289,7 @@ class SyncPushView(APIView):
             customer_id=customer_id,
             user=op.user,
             sale_date=payload['sale_date'],
+            paid_amount=payload.get('paid_amount', 0),
         )
         
         total_amount = 0
@@ -331,6 +335,12 @@ class SyncPushView(APIView):
         
         sale.total_amount = total_amount
         sale.total_quantity = total_quantity
+        # Vente à crédit : le solde impayé s'ajoute à la dette du client.
+        remaining = total_amount - sale.paid_amount
+        if remaining > 0 and customer_id:
+            Customer.objects.filter(id=customer_id).update(
+                debt_amount=F('debt_amount') + remaining
+            )
         sale.save()
         
         
@@ -358,6 +368,7 @@ class SyncPushView(APIView):
             supplier_id=supplier_id,
             user=op.user,
             purchase_date=payload['purchase_date'],
+            paid_amount=payload.get('paid_amount', 0),
         )
 
         total_amount = 0
@@ -401,6 +412,71 @@ class SyncPushView(APIView):
         purchase.total_quantity = total_quantity
         purchase.save()
         
+
+
+    def _create_payment(self, op: JournalOperation):
+        """
+        Enregistre un paiement (créance client réglée ou dette
+        fournisseur réglée), puis met à jour de façon atomique :
+        - le debt_amount du client OU du fournisseur (jamais les deux)
+        - le paid_amount de la vente/achat ciblé, si renseigné
+
+        Payload attendu :
+        {
+            'direction': 'CUSTOMER_PAYMENT' | 'SUPPLIER_PAYMENT',
+            'customer_id': UUID ou null,
+            'supplier_id': UUID ou null,
+            'sale_id': UUID ou null,
+            'purchase_id': UUID ou null,
+            'amount': decimal,
+            'method': 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'OTHER',
+            'note': str,
+            'payment_date': ISO8601,
+        }
+
+        Le montant est toujours positif : c'est `direction` qui
+        détermine s'il diminue une créance (debt_amount client) ou
+        une dette (debt_amount fournisseur) — jamais les deux à la fois.
+        """
+        payload = op.payload
+        direction = payload['direction']
+        amount = payload['amount']
+
+        payment = Payment.objects.create(
+            id=op.entity_id,
+            store_id=op.store_id,
+            direction=direction,
+            customer_id=payload.get('customer_id'),
+            supplier_id=payload.get('supplier_id'),
+            sale_id=payload.get('sale_id'),
+            purchase_id=payload.get('purchase_id'),
+            amount=amount,
+            method=payload.get('method', Payment.Method.CASH),
+            note=payload.get('note', ''),
+            payment_date=payload['payment_date'],
+        )
+
+        if direction == Payment.Direction.CUSTOMER_PAYMENT and payment.customer_id:
+            # Update atomique F() : évite un race condition si deux
+            # paiements du même client arrivent en même temps depuis
+            # deux appareils différents (même principe que le stock).
+            Customer.objects.filter(id=payment.customer_id).update(
+                debt_amount=F('debt_amount') - amount
+            )
+            if payment.sale_id:
+                Sale.objects.filter(id=payment.sale_id).update(
+                    paid_amount=F('paid_amount') + amount
+                )
+
+        elif direction == Payment.Direction.SUPPLIER_PAYMENT and payment.supplier_id:
+            Supplier.objects.filter(id=payment.supplier_id).update(
+                debt_amount=F('debt_amount') - amount
+            )
+            if payment.purchase_id:
+                Purchase.objects.filter(id=payment.purchase_id).update(
+                    paid_amount=F('paid_amount') + amount
+                )
+    
 
     def _create_stock_movement(self, op: JournalOperation, movement_type: str):
         """
