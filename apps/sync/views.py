@@ -410,6 +410,12 @@ class SyncPushView(APIView):
 
         purchase.total_amount = total_amount
         purchase.total_quantity = total_quantity
+        # Achat à crédit : le solde impayé s'ajoute à la dette du fournisseur.
+        remaining = total_amount - purchase.paid_amount
+        if remaining > 0 and supplier_id:
+            Supplier.objects.filter(id=supplier_id).update(
+                debt_amount=F('debt_amount') + remaining
+            )
         purchase.save()
         
 
@@ -484,11 +490,12 @@ class SyncPushView(APIView):
         ET applique le delta au stock réel du produit.
 
         Un réapprovisionnement (RESTOCK) peut porter en plus :
-        - supplier_id : fournisseur associé (optionnel)
-        - new_purchase_price / new_selling_price : si les prix ont
-          changé à ce réappro précis, on les enregistre ET on met à
-          jour le produit (comme un UPDATE_PRODUCT), dans la même
-          opération pour rester atomique.
+        - supplier_id, new_purchase_price / new_selling_price (existant)
+        - unit_cost / paid_amount (Comptabilité) : si unit_cost est
+          fourni, ce réappro est à crédit — le solde impayé
+          (quantity_delta * unit_cost - paid_amount) s'ajoute à
+          Supplier.debt_amount. Pas de Purchase créée ici, juste le
+          compteur global du fournisseur.
         """
         payload = op.payload
 
@@ -519,6 +526,18 @@ class SyncPushView(APIView):
             price_updates['selling_price'] = payload['new_selling_price']
         if price_updates:
             Product.objects.filter(id=payload['product_id']).update(**price_updates)
+
+        # ---- Comptabilité : réappro à crédit ----
+        unit_cost = payload.get('unit_cost')
+        supplier_id = payload.get('supplier_id')
+        if unit_cost is not None and supplier_id:
+            total = payload['quantity_delta'] * unit_cost
+            paid_amount = payload.get('paid_amount', 0)
+            remaining = total - paid_amount
+            if remaining > 0:
+                Supplier.objects.filter(id=supplier_id).update(
+                    debt_amount=F('debt_amount') + remaining
+                )
 
 
 class SyncBootstrapView(APIView):
