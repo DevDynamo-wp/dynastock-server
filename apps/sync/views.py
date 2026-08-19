@@ -18,7 +18,7 @@
 import uuid
 
 from django.db import transaction
-from rest_framework import permissions, status
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -37,6 +37,7 @@ from apps.expenses.models import Expense
 from apps.expenses.serializers import ExpenseSerializer
 from apps.employees.models import Employee
 from apps.employees.serializers import EmployeeSerializer
+from apps.sync.serializers import ActivityLogSerializer
 
 from apps.subscriptions.permissions import HasWriteAccess
 from django.db.models import F
@@ -579,3 +580,27 @@ class SyncBootstrapView(APIView):
             # 'products': [...],   # ajouté quand Product existera côté serveur
             # 'customers': [...],  # idem
         })
+        
+        
+class ActivityLogListView(generics.ListAPIView):
+    """GET /api/sync/activities/
+    Fil d'activité de toutes les boutiques auxquelles l'utilisateur
+    a accès (propriétaire ou gérant). Limité aux opérations déjà
+    appliquées avec succès (applied=True) : une opération en échec
+    ne doit pas apparaître comme une action réelle.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ActivityLogSerializer
+
+    def get_queryset(self):
+        store_ids = self.request.user.store_links.values_list('store_id', flat=True)
+        queryset = JournalOperation.objects.filter(
+            store_id__in=store_ids,
+            applied=True,
+        ).select_related('user', 'store').order_by('-client_created_at')
+
+        store_id = self.request.query_params.get('store_id')
+        if store_id:
+            queryset = queryset.filter(store_id=store_id)
+
+        return queryset
