@@ -94,7 +94,8 @@ class StoreInvitation(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'En attente'
         ACCEPTED = 'accepted', 'Acceptée'
-        REVOKED = 'revoked', 'Révoquée'
+        REVOKED = 'revoked', 'Révoquée'      # révoquée par le propriétaire
+        REJECTED = 'rejected', 'Rejetée'     # rejetée par l'invité lui-même
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 

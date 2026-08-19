@@ -81,3 +81,23 @@ class StoreMemberSerializer(serializers.ModelSerializer):
         model = UserStore
         fields = ['id', 'user_id', 'email', 'full_name', 'role', 'status', 'joined_at']
         read_only_fields = fields
+        
+        
+        
+class MyInvitationSerializer(serializers.ModelSerializer):
+    """Représentation d'une invitation du point de vue de l'INVITÉ
+    (écran 'Invitations reçues'). Contrairement à StoreInvitationSerializer
+    (point de vue du propriétaire), on expose le nom de la boutique et
+    de l'invitant plutôt que l'email invité (l'utilisateur connaît déjà
+    son propre email)."""
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    invited_by_name = serializers.CharField(source='invited_by.full_name', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = StoreInvitation
+        fields = [
+            'id', 'store_name', 'role', 'code', 'status',
+            'created_at', 'expires_at', 'is_expired', 'invited_by_name',
+        ]
+        read_only_fields = fields

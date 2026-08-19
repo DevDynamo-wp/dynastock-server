@@ -4,6 +4,8 @@
 from django.urls import path
 from apps.stores.views import (
     AcceptInvitationView,
+    MyInvitationListView,
+    RejectInvitationView,
     StoreInvitationListCreateView,
     StoreInvitationRevokeView,
     StoreListCreateView,
@@ -16,6 +18,15 @@ urlpatterns = [
 
     # Pas de store_id dans l'URL : le code identifie la boutique lui-même.
     path('invitations/accept/', AcceptInvitationView.as_view(), name='invitation-accept'),
+
+    # Invitations reçues par l'utilisateur connecté (par email), avant
+    # toute liaison à une boutique — écran "Invitations".
+    path('invitations/mine/', MyInvitationListView.as_view(), name='invitation-mine'),
+    path(
+        'invitations/<uuid:invitation_id>/reject/',
+        RejectInvitationView.as_view(),
+        name='invitation-reject',
+    ),
 
     path(
         '<uuid:store_id>/invitations/',

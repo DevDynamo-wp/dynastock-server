@@ -23,6 +23,7 @@ from apps.stores.serializers import (
     AcceptInvitationSerializer,
     CreateInvitationSerializer,
     CreateStoreSerializer,
+    MyInvitationSerializer,
     StoreInvitationSerializer,
     StoreMemberSerializer,
     StoreSerializer,
@@ -149,6 +150,45 @@ class AcceptInvitationView(APIView):
         store = invitation.store
         store.user_role = user_store.role
         return Response(StoreSerializer(store).data, status=status.HTTP_200_OK)
+    
+    
+class MyInvitationListView(generics.ListAPIView):
+    """GET /api/stores/invitations/mine/
+    Liste les invitations en attente pour l'utilisateur connecté,
+    retrouvées par son email (pas besoin de code pour les VOIR —
+    le code ne sert que si on veut les accepter via AcceptInvitationView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MyInvitationSerializer
+
+    def get_queryset(self):
+        return StoreInvitation.objects.filter(
+            invited_email__iexact=self.request.user.email,
+            status=StoreInvitation.Status.PENDING,
+        ).select_related('store', 'invited_by').order_by('-created_at')
+
+
+class RejectInvitationView(APIView):
+    """POST /api/stores/invitations/<invitation_id>/reject/
+    L'invité refuse une invitation qui lui est destinée.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, invitation_id):
+        try:
+            invitation = StoreInvitation.objects.get(
+                id=invitation_id,
+                status=StoreInvitation.Status.PENDING,
+            )
+        except StoreInvitation.DoesNotExist:
+            raise ValidationError("Invitation introuvable ou déjà traitée.")
+
+        if invitation.invited_email.lower() != request.user.email.lower():
+            raise PermissionDenied("Cette invitation ne vous est pas destinée.")
+
+        invitation.status = StoreInvitation.Status.REJECTED
+        invitation.save(update_fields=['status'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class StoreMemberListView(generics.ListAPIView):
